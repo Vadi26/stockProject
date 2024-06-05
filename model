@@ -1,0 +1,73 @@
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+
+# Step 1: Load Data
+data = pd.read_csv('ohlc_data.csv')
+
+# Step 2: Calculate Technical Indicators (Example for RSI and MACD)
+def calculate_rsi(data, window):
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+def calculate_macd(data, fast=12, slow=26, signal=9):
+    data['ema_fast'] = data['Close'].ewm(span=fast, adjust=False).mean()
+    data['ema_slow'] = data['Close'].ewm(span=slow, adjust=False).mean()
+    data['macd'] = data['ema_fast'] - data['ema_slow']
+    data['macd_signal'] = data['macd'].ewm(span=signal, adjust=False).mean()
+    data['macd_diff'] = data['macd'] - data['macd_signal']
+    return data
+
+# Example indicators
+data['RSI'] = calculate_rsi(data, window=14)
+data = calculate_macd(data)
+
+# Add more indicators as needed
+# ...
+
+# Step 3: Generate Buy/Sell Signals
+def generate_signals(data):
+    data['Signal'] = 0
+    data.loc[(data['macd_diff'] > 0) & (data['RSI'] < 30), 'Signal'] = 1  # Buy
+    data.loc[(data['macd_diff'] < 0) & (data['RSI'] > 70), 'Signal'] = -1  # Sell
+    return data
+
+data = generate_signals(data)
+
+# Step 4: Prepare Features and Labels
+features = ['RSI', 'macd', 'macd_signal', 'macd_diff']  # Add all features here
+X = data[features].dropna()
+y = data['Signal'].dropna()
+
+# Ensure alignment
+X, y = X.align(y, join='inner', axis=0)
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Step 5: Train Model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Step 6: Evaluate Model
+y_pred = model.predict(X_test)
+print(classification_report(y_test, y_pred))
+
+# Predict new data
+def predict_signals(new_data):
+    new_data['RSI'] = calculate_rsi(new_data, window=14)
+    new_data = calculate_macd(new_data)
+    X_new = new_data[features].dropna()
+    new_data['Predicted_Signal'] = model.predict(X_new)
+    return new_data
+
+# Use the model to predict on new data
+new_data = pd.read_csv('new_ohlc_data.csv')
+predicted_signals = predict_signals(new_data)
+print(predicted_signals[['Date', 'Predicted_Signal']])
