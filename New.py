@@ -171,3 +171,56 @@ X, y = X.align(y, join='inner', axis=0)
 
 # Split data
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+6
+# Load the trained model
+model = joblib.load('trading_signal_model.pkl')
+
+# Make predictions on new data
+new_data = pd.read_csv('new_ohlc_data.csv')
+
+# Ensure the new data has the same features
+# Recalculate indicators for new data as needed (you can define functions again or refactor them into a separate module)
+new_data['RSI'] = calculate_rsi(new_data, window=14)
+new_data = calculate_macd(new_data)
+new_data = calculate_bollinger_bands(new_data)
+new_data = calculate_ema(new_data, span=20)
+new_data = calculate_ema(new_data, span=50)
+new_data = calculate_supertrend(new_data)
+new_data = calculate_vwap(new_data)
+new_data = calculate_obv(new_data)
+new_data = identify_doji(new_data)
+new_data = identify_hammer(new_data)
+new_data = identify_morning_star(new_data)
+new_data = identify_evening_star(new_data)
+
+new_data = calculate_pattern_score(new_data)
+new_data = calculate_indicator_volume_strategy(new_data)
+new_data = calculate_macd_rsi_strategy(new_data)
+new_data = calculate_all_indicators_strategy(new_data)
+new_data = calculate_macd_ema_strategy(new_data)
+
+# Prepare new features
+new_X = new_data[features].dropna()
+
+# Make predictions
+new_data['Predicted_Signal'] = model.predict(new_X)
+
+# Save the predictions
+new_data.to_csv('new_ohlc_data_with_signals.csv', index=False)
