@@ -42,3 +42,36 @@ print(f'Sharpe Ratio: {sharpe_ratio:.2f}')
 
 # Save the backtest results
 df.to_csv('backtest_results.csv', index=False)
+
+
+import pandas as pd
+from backtesting import Backtest, Strategy
+from backtesting.lib import crossover
+
+# Read CSV file
+data = pd.read_csv('your_data.csv', parse_dates=True, index_col='Date')
+
+# Define the strategy class
+class SignalStrategy(Strategy):
+    def init(self):
+        self.signal = self.data['Signals']
+
+    def next(self):
+        if self.signal[-1] == 'buy':
+            self.buy()
+        elif self.signal[-1] == 'sell':
+            self.sell()
+
+# Prepare the data for backtesting
+data.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close'}, inplace=True)
+data.dropna(subset=['Signals'], inplace=True)
+
+# Initialize the backtest
+bt = Backtest(data, SignalStrategy, cash=10000, commission=.002)
+
+# Run the backtest
+stats = bt.run()
+
+# Output the results
+print(stats)
+bt.plot()
