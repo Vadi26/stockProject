@@ -3,25 +3,27 @@ from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
 from backtesting.test import GOOG  # Example data
 
+def compute_macd(series, short_window=12, long_window=26, signal_window=9):
+    short_ema = series.ewm(span=short_window, adjust=False).mean()
+    long_ema = series.ewm(span=long_window, adjust=False).mean()
+    macd = short_ema - long_ema
+    signal = macd.ewm(span=signal_window, adjust=False).mean()
+    hist = macd - signal
+    return macd, signal, hist
+
 class MACD_EMA_Strategy(Strategy):
+    short_window = 12
+    long_window = 26
+    signal_window = 9
+
     def init(self):
-        # Precompute MACD
         close = self.data.Close
-        self.macd = self.I(self.compute_macd, close)
-        
-    def compute_macd(self, series, short_window=12, long_window=26, signal_window=9):
-        short_ema = series.ewm(span=short_window, adjust=False).mean()
-        long_ema = series.ewm(span=long_window, adjust=False).mean()
-        macd = short_ema - long_ema
-        signal = macd.ewm(span=signal_window, adjust=False).mean()
-        hist = macd - signal
-        return macd, signal, hist
+        self.macd, self.signal, self.hist = compute_macd(close, self.short_window, self.long_window, self.signal_window)
 
     def next(self):
-        macd, signal, hist = self.macd[-1]
-        if crossover(macd, signal):
+        if crossover(self.macd, self.signal):
             self.buy()
-        elif crossover(signal, macd):
+        elif crossover(self.signal, self.macd):
             self.sell()
 
 # Backtest the strategy
