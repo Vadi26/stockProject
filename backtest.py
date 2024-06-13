@@ -1,44 +1,37 @@
 import pandas as pd
 from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
-from backtesting.test import GOOG  # Example data
 
-def compute_macd(series, short_window=12, long_window=26, signal_window=9):
-    short_ema = series.ewm(span=short_window, adjust=False).mean()
-    long_ema = series.ewm(span=long_window, adjust=False).mean()
-    macd = short_ema - long_ema
-    signal = macd.ewm(span=signal_window, adjust=False).mean()
-    hist = macd - signal
-    return macd, signal, hist
+# Load data from CSV
+data = pd.read_csv('your_ema_values.csv', parse_dates=True, index_col='Date')
+
+# Ensure the columns are named correctly and match the strategy's requirements
+print(data.head())
 
 class MACD_EMA_Strategy(Strategy):
-    short_window = 12
-    long_window = 26
-    signal_window = 9
-
     def init(self):
-        close = self.data.Close
-        self.macd, self.signal, self.hist = compute_macd(close, self.short_window, self.long_window, self.signal_window)
+        # Use precomputed MACD and Signal values from the CSV
+        self.macd = self.data.MACD
+        self.macd_signal = self.data.MACD_SIGNAL
 
     def next(self):
-        if crossover(self.macd, self.signal):
+        if crossover(self.macd, self.macd_signal):
             self.buy()
-        elif crossover(self.signal, self.macd):
+        elif crossover(self.macd_signal, self.macd):
             self.sell()
 
 # Backtest the strategy
-bt = Backtest(GOOG, MACD_EMA_Strategy, cash=10_000, commission=.002)
+bt = Backtest(data, MACD_EMA_Strategy, cash=10_000, commission=.002)
 stats = bt.run()
-print(stats)
-
-# Optimize the strategy
-stats = bt.optimize(
-    short_window=range(5, 20, 1),
-    long_window=range(20, 50, 1),
-    signal_window=range(5, 15, 1),
-    maximize='Equity Final [$]'
-)
 print(stats)
 
 # Visualize the results
 bt.plot()
+
+# Optimize the strategy
+stats = bt.optimize(
+    cash=10_000, # Starting cash for optimization
+    commission=.002, # Commission for optimization
+    maximize='Equity Final [$]'
+)
+print(stats)
